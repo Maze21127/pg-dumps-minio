@@ -63,3 +63,21 @@ pip
 cat <(crontab -l) <(echo "@daily cd $(pwd) && $(pwd)/venv/bin/python $(pwd)/main.py >> $(pwd)/cron_log.txt 2>&1") | crontab - 
 ```
 
+## Copy from Postgres in Docker
+### Docker compose
+Add volume in db service
+```yaml
+volumes:
+  - /var/tmp/pg_dumps_minio:/var/tmp/pg_dumps_minio
+```
+
+### Docker
+run with `-v /var/tmp/pg_dumps_minio:/var/tmp/pg_dumps_minio`  
+e.g
+```bash
+export PG_DUMPS_MINIO_DIR=/var/tmp/pg_dumps_minio
+docker run -p 5434:5432 \
+  -d --name postgres \
+  -v ${PG_DUMPS_MINIO_DIR}:${PG_DUMPS_MINIO_DIR} \
+  postgres:15
+```
