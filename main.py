@@ -72,22 +72,21 @@ def send_to_s3(file_path: str, filename: str) -> None:
     print(f"send {filename} to {settings.S3_BUCKET}")
 
 
-def cleanup_dirs() -> None:
-    shutil.rmtree("temp")
-    shutil.rmtree("dumps")
-    print("cleanup dirs success")
+def cleanup_dirs(root_path: str) -> None:
+    shutil.rmtree(os.path.join(root_path, "temp"))
+    shutil.rmtree(os.path.join(root_path, "dumps"))
+    print("cleanup success")
 
 
 def main() -> None:
-    settings = Settings()
-    current_dir = os.getcwd()
+    root_path = "/var/tmp/pg_dumps_minio"
     db_name = settings.DB_DSN.path[1:]
     schema = settings.DB_SCHEMA
-    db_dir = os.path.join(current_dir, "temp", db_name)
-    dumps_dir = os.path.join(current_dir, "dumps")
-    schema_dir = os.path.join(current_dir, db_dir, schema)
+    db_dir = os.path.join(root_path, "temp", db_name)
+    dumps_dir = os.path.join(root_path, "dumps")
+    schema_dir = os.path.join(root_path, db_dir, schema)
 
-    make_dirs(db_dir, schema_dir, dumps_dir)
+    make_dirs(root_path, db_dir, schema_dir, dumps_dir)
     dump_tables(schema, schema_dir)
 
     export_file = os.path.join(dumps_dir, db_name)
@@ -102,7 +101,7 @@ def main() -> None:
         f"{exported_file_path.split('/')[-1]}"
     )
     send_to_s3(exported_file_path, filename)
-    cleanup_dirs()
+    cleanup_dirs(root_path)
 
 
 if __name__ == "__main__":
