@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "pg-dumps-minio"
+version = "0.1.0"
+description = ""
+authors = ["Vladimir Kul'kov <kulkov.vk@dns-shop.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.4.0"
+psycopg2-binary = "^2.9.9"
+boto3 = "^1.35.5"
+python-dotenv = "^1.0.1"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "0.6.2"
+ruff-lsp = "0.0.55"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 80
+extend-exclude = ["hooks/"]
+
+[tool.ruff.lint]
+ignore = ["B008", "ANN101"]
+select = ["A", "B", "C", "E", "F", "I", "Q", "ASYNC", "N", "W", "UP", "T20", "SIM", "ANN", "PL"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F401", "F403"] # unused imports
+"models.py" = ["N805", "A003"] # cls instead self, id for modles
+"schemas.py" = ["N805", "A003"] # cls instead self, id for modles
+"mixins.py" = ["N805", "A003", "ANN201"] # cls instead self, id for modles
+"requests.py" = ["N805", "A003"] # cls instead self, id for modles
+"test_*.py" = ["ANN201"]
