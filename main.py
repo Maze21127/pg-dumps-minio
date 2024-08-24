@@ -1,6 +1,8 @@
+import csv
 import datetime as dt
 import os
 import shutil
+from typing import NamedTuple
 
 import boto3.session
 import psycopg2
@@ -34,21 +36,42 @@ def get_tables(cursor: NamedTupleCursor, schema: str) -> list[str]:
     return [i.table_name for i in data]
 
 
+def get_data(
+    cursor: NamedTupleCursor, schema: str, table: str, limit: int, offset: int
+) -> tuple:
+    cursor.execute(
+        f"select * from {schema}.{table} limit {limit} offset {offset}"
+    )
+    data = cursor.fetchall()
+    return data
+
+
+def write_to_csv(
+    data: NamedTuple, filename: str, with_header: bool = False
+) -> None:
+    with open(filename, mode="a") as csvfile:
+        writer = csv.writer(csvfile)
+        if with_header:
+            writer.writerow(data[0]._fields)
+        writer.writerows(data)
+
+
 def dump_table(
     cursor: NamedTupleCursor, schema: str, table: str, path: str
 ) -> None:
-    query = (
-        f"COPY (SELECT * FROM {schema}.{table}) TO '{path}.csv' "
-        f"WITH (FORMAT CSV, HEADER)"
-    )
-    cursor.execute(query)
-    # cursor.execute(
-    #     f"select * from {schema}.{table}",
-    #     (schema, table),
-    # )
-    # data = cursor.fetchall()
-    # print(data)
-    print(f"Created {path}.csv")
+    batch_size = int(os.getenv("BATCH_SIZE", "10000"))
+    offset = 0
+    filename = f"{path}.csv"
+    with_header = True
+    while True:
+        data = get_data(cursor, schema, table, batch_size, offset)
+
+        if not len(data):
+            break
+        write_to_csv(data, filename, with_header=with_header)
+        with_header = False
+        offset += batch_size
+    print(f"Created {filename}")
 
 
 def dump_tables(schema_name: str, db_path: str) -> None:
@@ -102,11 +125,11 @@ def main() -> None:
 
     exported_file_path = f"{export_file}.{export_format}"
 
-    filename = (
+    export_filename = (
         f"{int(dt.datetime.now().timestamp())}_"
         f"{exported_file_path.split('/')[-1]}"
     )
-    send_to_s3(exported_file_path, filename)
+    send_to_s3(exported_file_path, export_filename)
     cleanup_dirs(root_path)
 
 
