@@ -49,7 +49,7 @@ def get_data(
 def write_to_csv(
     data: NamedTuple, filename: str, with_header: bool = False
 ) -> None:
-    with open(filename, mode="a") as csvfile:
+    with open(filename, mode="a", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
         if with_header:
             writer.writerow(data[0]._fields)
