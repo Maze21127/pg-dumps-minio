@@ -21,7 +21,16 @@ Create environment
 ```bash
 python -m venv venv
 source venv/bin/activate
+```
+
+for >= 3.10
+```bash
 pip install -r requirements.txt
+```
+
+for < 3.10
+```bash
+pip install -r requirements-old.txt
 ```
 
 Create own .env file

@@ -1,0 +1,6 @@
+pydantic
+pydantic-settings
+psycopg2-binary
+boto3
+python-dotenv
+loguru

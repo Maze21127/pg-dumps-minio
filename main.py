@@ -2,7 +2,7 @@ import csv
 import datetime as dt
 import os
 import shutil
-from typing import Final, NamedTuple
+from typing import Final, NamedTuple, Optional
 
 import boto3.session
 import psycopg2
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: SecretStr
 
     DB_DSN: PostgresDsn
-    DB_SCHEMA: str | None = None
+    DB_SCHEMA: Optional[str] = None  # noqa: F821
 
 
 settings = Settings()
@@ -86,7 +86,7 @@ def dump_table(
     logger.info(f"Created {filename}")
 
 
-def dump_tables(cursor: NamedTupleCursor, schema: str | None = None) -> None:
+def dump_tables(cursor: NamedTupleCursor, schema: Optional[str] = None) -> None:
     schemas = get_schemas(cursor) if schema is None else [schema]
     for schema_name in schemas:
         schema_dir = os.path.join(ROOT_PATH, DB_DIR, schema_name)
