@@ -116,9 +116,9 @@ def send_to_s3(file_path: str, filename: str) -> None:
     logger.info(f"send {filename} to {endpoint_url}{settings.S3_BUCKET}")
 
 
-def cleanup_dirs(root_path: str) -> None:
-    shutil.rmtree(os.path.join(root_path, "temp"))
-    shutil.rmtree(os.path.join(root_path, "dumps"))
+def cleanup_dirs() -> None:
+    shutil.rmtree(os.path.join(ROOT_PATH, "temp"))
+    shutil.rmtree(os.path.join(ROOT_PATH, "dumps"))
     logger.debug("cleanup success")
 
 
@@ -141,7 +141,7 @@ def main() -> None:
         f"{exported_file_path.split('/')[-1]}"
     )
     send_to_s3(exported_file_path, export_filename)
-    cleanup_dirs(ROOT_PATH)
+    cleanup_dirs()
 
 
 if __name__ == "__main__":
