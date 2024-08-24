@@ -112,7 +112,9 @@ def send_to_s3(file_path: str, filename: str) -> None:
         aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
     )
     logger.debug("S3 client init success")
-    _client.upload_file(file_path, settings.S3_BUCKET, filename)
+    _client.upload_file(
+        file_path, settings.S3_BUCKET, os.path.join(DB_NAME, filename)
+    )
     logger.info(f"send {filename} to {endpoint_url}{settings.S3_BUCKET}")
 
 
