@@ -42,6 +42,12 @@ def dump_table(
         f"WITH (FORMAT CSV, HEADER)"
     )
     cursor.execute(query)
+    # cursor.execute(
+    #     f"select * from {schema}.{table}",
+    #     (schema, table),
+    # )
+    # data = cursor.fetchall()
+    # print(data)
     print(f"Created {path}.csv")
 
 
@@ -92,7 +98,7 @@ def main() -> None:
     export_file = os.path.join(dumps_dir, db_name)
     export_format = "zip"
 
-    shutil.make_archive(export_file, export_format, dumps_dir)
+    shutil.make_archive(export_file, export_format, db_dir)
 
     exported_file_path = f"{export_file}.{export_format}"
 
