@@ -7,6 +7,7 @@ from typing import NamedTuple
 import boto3.session
 import psycopg2
 from dotenv import load_dotenv
+from loguru import logger
 from psycopg2.extras import NamedTupleCursor
 from pydantic import HttpUrl, PostgresDsn, SecretStr
 from pydantic_settings import BaseSettings
@@ -71,7 +72,7 @@ def dump_table(
         write_to_csv(data, filename, with_header=with_header)
         with_header = False
         offset += batch_size
-    print(f"Created {filename}")
+    logger.info(f"Created {filename}")
 
 
 def dump_tables(schema_name: str, db_path: str) -> None:
@@ -96,15 +97,15 @@ def send_to_s3(file_path: str, filename: str) -> None:
         aws_access_key_id=settings.S3_ACCESS_KEY.get_secret_value(),
         aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
     )
-    print("S3 client init success")
+    logger.info("S3 client init success")
     _client.upload_file(file_path, settings.S3_BUCKET, filename)
-    print(f"send {filename} to {settings.S3_BUCKET}")
+    logger.info(f"send {filename} to {settings.S3_BUCKET}")
 
 
 def cleanup_dirs(root_path: str) -> None:
     shutil.rmtree(os.path.join(root_path, "temp"))
     shutil.rmtree(os.path.join(root_path, "dumps"))
-    print("cleanup success")
+    logger.debug("cleanup success")
 
 
 def main() -> None:
