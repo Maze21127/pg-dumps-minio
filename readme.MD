@@ -1,6 +1,6 @@
 # pg-dumps-minio
 
-Export all tables from PostgreSQL schema to S3 bucket
+Export all tables in csv from PostgreSQL to S3 bucket
 
 Envs:
 
@@ -18,6 +18,13 @@ delete DB_SCHEMA to copy all schemas
 
 ## Install and run
 Create environment
+
+### Poetry
+```bash
+poetry install
+```
+
+### Pip
 ```bash
 python -m venv venv
 source venv/bin/activate
@@ -37,13 +44,21 @@ Create own .env file
 ```bash
 cp .env.dist .env
 ```
+delete DB_SCHEMA to copy all schemas
 
 Run script
 ```bash
 python main.py
 ```
 
-Add to crontab
+### Add to crontab
+
+poetry
+```bash
+cat <(crontab -l) <(echo "@daily cd $(pwd) && poetry run main.py >> $(pwd)/cron_log.txt 2>&1") | crontab - 
+```
+
+pip
 ```bash
 cat <(crontab -l) <(echo "@daily cd $(pwd) && $(pwd)/venv/bin/python $(pwd)/main.py >> $(pwd)/cron_log.txt 2>&1") | crontab - 
 ```
