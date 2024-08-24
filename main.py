@@ -2,7 +2,7 @@ import csv
 import datetime as dt
 import os
 import shutil
-from typing import NamedTuple
+from typing import Final, NamedTuple
 
 import boto3.session
 import psycopg2
@@ -22,10 +22,21 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: SecretStr
 
     DB_DSN: PostgresDsn
-    DB_SCHEMA: str
+    DB_SCHEMA: str | None = None
 
 
 settings = Settings()
+ROOT_PATH: Final = "/var/tmp/pg_dumps_minio"
+DB_NAME: Final = settings.DB_DSN.path[1:]
+DB_DIR: Final = os.path.join(ROOT_PATH, "temp", DB_NAME)
+DUMPS_DIR: Final = os.path.join(ROOT_PATH, "dumps")
+
+
+def get_schemas(cursor: NamedTupleCursor) -> list[str]:
+    excluded = {"information_schema", "pg_catalog", "pg_toast"}
+    cursor.execute("select * from information_schema.schemata")
+    data = cursor.fetchall()
+    return [i.schema_name for i in data if i.schema_name not in excluded]
 
 
 def get_tables(cursor: NamedTupleCursor, schema: str) -> list[str]:
@@ -75,13 +86,15 @@ def dump_table(
     logger.info(f"Created {filename}")
 
 
-def dump_tables(schema_name: str, db_path: str) -> None:
-    conn = psycopg2.connect(settings.DB_DSN.unicode_string())
-    with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
-        tables = get_tables(cur, schema=schema_name)
+def dump_tables(cursor: NamedTupleCursor, schema: str | None = None) -> None:
+    schemas = get_schemas(cursor) if schema is None else [schema]
+    for schema_name in schemas:
+        schema_dir = os.path.join(ROOT_PATH, DB_DIR, schema_name)
+        make_dirs(schema_dir)
+        tables = get_tables(cursor, schema=schema_name)
         for table in tables:
-            path = os.path.join(db_path, table)
-            dump_table(cur, schema_name, table, path)
+            path = os.path.join(schema_dir, table)
+            dump_table(cursor, schema_name, table, path)
 
 
 def make_dirs(*dirs: str) -> None:
@@ -91,15 +104,16 @@ def make_dirs(*dirs: str) -> None:
 
 def send_to_s3(file_path: str, filename: str) -> None:
     _session = boto3.session.Session()
+    endpoint_url = settings.S3_ENDPOINT.unicode_string()
     _client = _session.client(
         service_name="s3",
-        endpoint_url=settings.S3_ENDPOINT.unicode_string(),
+        endpoint_url=endpoint_url,
         aws_access_key_id=settings.S3_ACCESS_KEY.get_secret_value(),
         aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
     )
-    logger.info("S3 client init success")
+    logger.debug("S3 client init success")
     _client.upload_file(file_path, settings.S3_BUCKET, filename)
-    logger.info(f"send {filename} to {settings.S3_BUCKET}")
+    logger.info(f"send {filename} to {endpoint_url}{settings.S3_BUCKET}")
 
 
 def cleanup_dirs(root_path: str) -> None:
@@ -109,20 +123,16 @@ def cleanup_dirs(root_path: str) -> None:
 
 
 def main() -> None:
-    root_path = "/var/tmp/pg_dumps_minio"
-    db_name = settings.DB_DSN.path[1:]
-    schema = settings.DB_SCHEMA
-    db_dir = os.path.join(root_path, "temp", db_name)
-    dumps_dir = os.path.join(root_path, "dumps")
-    schema_dir = os.path.join(root_path, db_dir, schema)
+    make_dirs(ROOT_PATH, DB_DIR, DUMPS_DIR)
 
-    make_dirs(root_path, db_dir, schema_dir, dumps_dir)
-    dump_tables(schema, schema_dir)
+    conn = psycopg2.connect(settings.DB_DSN.unicode_string())
+    with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
+        dump_tables(cur, settings.DB_SCHEMA)
 
-    export_file = os.path.join(dumps_dir, db_name)
+    export_file = os.path.join(DUMPS_DIR, DB_NAME)
     export_format = "zip"
 
-    shutil.make_archive(export_file, export_format, db_dir)
+    shutil.make_archive(export_file, export_format, DB_DIR)
 
     exported_file_path = f"{export_file}.{export_format}"
 
@@ -131,7 +141,7 @@ def main() -> None:
         f"{exported_file_path.split('/')[-1]}"
     )
     send_to_s3(exported_file_path, export_filename)
-    cleanup_dirs(root_path)
+    cleanup_dirs(ROOT_PATH)
 
 
 if __name__ == "__main__":

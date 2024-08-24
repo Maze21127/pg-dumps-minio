@@ -12,6 +12,9 @@ Envs:
 | S3_SECRET_KEY | secret_key                                             |
 | DB_DSN        | postgresql://postgres:postgres@localhost:5432/postgres |
 | DB_SCHEMA     | public                                                 |
+| BATCH_SIZE    | 10000                                                  |
+
+delete DB_SCHEMA to copy all schemas
 
 ## Install and run
 Create environment
@@ -30,3 +33,9 @@ Run script
 ```bash
 python main.py
 ```
+
+Add to crontab
+```bash
+cat <(crontab -l) <(echo "@daily cd $(pwd) && $(pwd)/venv/bin/python $(pwd)/main.py >> $(pwd)/cron_log.txt 2>&1") | crontab - 
+```
+
