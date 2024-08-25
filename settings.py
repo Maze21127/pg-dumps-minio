@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Self
+from typing import Optional
 
 from dotenv import load_dotenv
 from pydantic import (
@@ -11,6 +11,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_settings import BaseSettings
+from typing_extensions import Self
 
 load_dotenv(".env")
 
