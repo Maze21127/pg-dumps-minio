@@ -28,7 +28,10 @@ class Exporter:
 
     def export_all(self) -> None:
         for db in self.settings.databases:
-            self.export_one(db)
+            try:
+                self.export_one(db)
+            except Exception as e:
+                logger.error(f"Failed to export {db}: {e}")
 
     def export_one(
         self,
