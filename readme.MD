@@ -10,14 +10,24 @@ Envs:
 | S3_BUCKET     | bucket_name                                            |
 | S3_ACCESS_KEY | access_key                                             |
 | S3_SECRET_KEY | secret_key                                             |
-| DB_DSN        | postgresql://postgres:postgres@localhost:5432/postgres |
-| DB_SCHEMA     | public                                                 |
+| DB_DSN_1      | postgresql://postgres:postgres@localhost:5432/postgres |
+| DB_SCHEMA_1   | public                                                 |
 | BATCH_SIZE    | 10000                                                  |
 
-delete DB_SCHEMA to copy all schemas
+For export data from few databases you can set many envs for db_dsn, e.g:
+```bash
+DB_DSN_dev=postgresql://postgres:postgres@localhost:5432/postgres_dev
+DB_SCHEMA_dev=public
+
+DB_DSN_prod=postgresql://postgres:postgres@localhost:5432/postgres_prod
+DB_SCHEMA_prod=public
+```
+Make sure that values after prefix DB_DSN_ and DB_SCHEMA are equals
+
+> ❗delete DB_SCHEMA to copy all schemas from database
 
 ## Install and run
-Create environment
+Create virtual environment
 
 ### Poetry
 ```bash

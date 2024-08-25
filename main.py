@@ -2,17 +2,31 @@ import csv
 import datetime as dt
 import os
 import shutil
-from typing import Final, NamedTuple, Optional
+from typing import Final, NamedTuple, Optional, Self
 
 import boto3.session
 import psycopg2
+from botocore.client import BaseClient
 from dotenv import load_dotenv
 from loguru import logger
 from psycopg2.extras import NamedTupleCursor
-from pydantic import HttpUrl, PostgresDsn, SecretStr
+from pydantic import (
+    BaseModel,
+    Field,
+    HttpUrl,
+    PostgresDsn,
+    SecretStr,
+    model_validator,
+)
 from pydantic_settings import BaseSettings
 
 load_dotenv(".env")
+
+
+class DatabaseSettings(BaseModel):
+    name: str
+    dsn: PostgresDsn
+    db_schema: Optional[str] = None
 
 
 class Settings(BaseSettings):
@@ -21,15 +35,28 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY: SecretStr
     S3_SECRET_KEY: SecretStr
 
-    DB_DSN: PostgresDsn
-    DB_SCHEMA: Optional[str] = None  # noqa: F821
+    DATABASES: list[DatabaseSettings] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def read_all_databases(self) -> Self:
+        databases = {}
+        for k, v in os.environ.items():
+            if k.startswith("DB_DSN_"):
+                name = k.removeprefix("DB_DSN_")
+                databases[name] = DatabaseSettings(dsn=v, name=name)
+
+        for k, v in os.environ.items():
+            if k.startswith("DB_SCHEMA_"):
+                name = k.removeprefix("DB_SCHEMA_")
+                databases[name].db_schema = v
+        self.DATABASES = list(databases.values())
+        return self
 
 
 settings = Settings()
-ROOT_PATH: Final = "/var/tmp/pg_dumps_minio"
-DB_NAME: Final = settings.DB_DSN.path[1:]
-DB_DIR: Final = os.path.join(ROOT_PATH, "temp", DB_NAME)
-DUMPS_DIR: Final = os.path.join(ROOT_PATH, "dumps")
+ROOT_PATH: Final[str] = "/var/tmp/pg_dumps_minio"
+DUMPS_DIR: Final[str] = os.path.join(ROOT_PATH, "dumps")
+EXPORT_FORMAT = "zip"
 
 
 def get_schemas(cursor: NamedTupleCursor) -> list[str]:
@@ -50,7 +77,7 @@ def get_tables(cursor: NamedTupleCursor, schema: str) -> list[str]:
 
 def get_data(
     cursor: NamedTupleCursor, schema: str, table: str, limit: int, offset: int
-) -> tuple:
+) -> NamedTuple:
     cursor.execute(
         f"select * from {schema}.{table} limit {limit} offset {offset}"
     )
@@ -86,10 +113,14 @@ def dump_table(
     logger.info(f"Created {filename}")
 
 
-def dump_tables(cursor: NamedTupleCursor, schema: Optional[str] = None) -> None:
+def dump_tables(
+    cursor: NamedTupleCursor,
+    db_dir: str,
+    schema: Optional[str] = None,
+) -> None:
     schemas = get_schemas(cursor) if schema is None else [schema]
     for schema_name in schemas:
-        schema_dir = os.path.join(ROOT_PATH, DB_DIR, schema_name)
+        schema_dir = os.path.join(ROOT_PATH, db_dir, schema_name)
         make_dirs(schema_dir)
         tables = get_tables(cursor, schema=schema_name)
         for table in tables:
@@ -102,20 +133,11 @@ def make_dirs(*dirs: str) -> None:
         os.makedirs(directory, exist_ok=True)
 
 
-def send_to_s3(file_path: str, filename: str) -> None:
-    _session = boto3.session.Session()
-    endpoint_url = settings.S3_ENDPOINT.unicode_string()
-    _client = _session.client(
-        service_name="s3",
-        endpoint_url=endpoint_url,
-        aws_access_key_id=settings.S3_ACCESS_KEY.get_secret_value(),
-        aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
+def send_to_s3(client: BaseClient, file_path: str, filename: str) -> None:
+    client.upload_file(file_path, settings.S3_BUCKET, filename)
+    logger.info(
+        f"send {filename} to {settings.S3_ENDPOINT}{settings.S3_BUCKET}"
     )
-    logger.debug("S3 client init success")
-    _client.upload_file(
-        file_path, settings.S3_BUCKET, os.path.join(DB_NAME, filename)
-    )
-    logger.info(f"send {filename} to {endpoint_url}{settings.S3_BUCKET}")
 
 
 def cleanup_dirs() -> None:
@@ -124,25 +146,38 @@ def cleanup_dirs() -> None:
     logger.debug("cleanup success")
 
 
-def main() -> None:
-    make_dirs(ROOT_PATH, DB_DIR, DUMPS_DIR)
-
-    conn = psycopg2.connect(settings.DB_DSN.unicode_string())
+def create_dump(db_settings: DatabaseSettings, s3_client: BaseClient) -> None:
+    db_name: Final[str] = db_settings.dsn.path[1:]
+    db_dir: Final[str] = os.path.join(ROOT_PATH, "temp", db_name)
+    make_dirs(db_dir)
+    conn = psycopg2.connect(db_settings.dsn.unicode_string())
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
-        dump_tables(cur, settings.DB_SCHEMA)
+        dump_tables(cur, db_dir, db_settings.db_schema)
 
-    export_file = os.path.join(DUMPS_DIR, DB_NAME)
-    export_format = "zip"
-
-    shutil.make_archive(export_file, export_format, DB_DIR)
-
-    exported_file_path = f"{export_file}.{export_format}"
-
+    export_file = os.path.join(DUMPS_DIR, db_name)
+    shutil.make_archive(export_file, EXPORT_FORMAT, db_dir)
+    exported_file_path = f"{export_file}.{EXPORT_FORMAT}"
     export_filename = (
         f"{int(dt.datetime.now().timestamp())}_"
         f"{exported_file_path.split('/')[-1]}"
     )
-    send_to_s3(exported_file_path, export_filename)
+    export_filename = os.path.join(db_name, export_filename)
+    send_to_s3(s3_client, exported_file_path, export_filename)
+
+
+def main() -> None:
+    _session = boto3.session.Session()
+    endpoint_url = settings.S3_ENDPOINT.unicode_string()
+    client = _session.client(
+        service_name="s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=settings.S3_ACCESS_KEY.get_secret_value(),
+        aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
+    )
+    logger.debug("S3 client init success")
+    make_dirs(ROOT_PATH, DUMPS_DIR)
+    for db in settings.DATABASES:
+        create_dump(db, client)
     cleanup_dirs()
 
 
