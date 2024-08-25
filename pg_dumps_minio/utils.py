@@ -1,6 +1,9 @@
 import csv
 import os
+import shutil
 from typing import NamedTuple
+
+from loguru import logger
 
 
 def make_dirs(*dirs: str) -> None:
@@ -16,3 +19,13 @@ def append_to_csv(
         if with_header:
             writer.writerow(data[0]._fields)
         writer.writerows(data)
+
+
+def cleanup_dirs(root_path: str) -> None:
+    tmp_dir = os.path.join(root_path, "temp")
+    dumps_dir = os.path.join(root_path, "dumps")
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
+    if os.path.exists(dumps_dir):
+        shutil.rmtree(dumps_dir)
+    logger.debug("cleanup success")

@@ -18,16 +18,11 @@ class Exporter:
         self, settings: Settings, root_path: Optional[str] = None
     ) -> None:
         self.settings = settings
+        self._s3_session: boto3.session.Session | None = None
+        self._s3_client = None
 
-        self._s3_session = boto3.session.Session()
-        self._s3_client = self._s3_session.client(
-            service_name="s3",
-            endpoint_url=settings.S3_ENDPOINT.unicode_string(),
-            aws_access_key_id=settings.S3_ACCESS_KEY.get_secret_value(),
-            aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
-        )
-        self._root_path = root_path or "/var/tmp/pg_dumps_minio"
-        self._dumps_dir: Final[str] = os.path.join(self._root_path, "dumps")
+        self.root_path = root_path or "/var/tmp/pg_dumps_minio"
+        self._dumps_dir: Final[str] = os.path.join(self.root_path, "dumps")
         self._export_format = "zip"
         self._batch_size = int(os.getenv("BATCH_SIZE", "10000"))
 
@@ -40,7 +35,7 @@ class Exporter:
         db_settings: DatabaseSettings,
     ) -> None:
         db_name: Final[str] = db_settings.dsn.path[1:]
-        db_dir: Final[str] = os.path.join(self._root_path, "temp", db_name)
+        db_dir: Final[str] = os.path.join(self.root_path, "temp", db_name)
         make_dirs(db_dir)
 
         conn = psycopg2.connect(db_settings.dsn.unicode_string())
@@ -55,6 +50,8 @@ class Exporter:
         shutil.make_archive(export_file, self._export_format, db_dir)
 
         filepath, filename = self._generate_filename(db_name, export_file)
+
+        self._init_s3_client()
         self._s3_client.upload_file(filepath, self.settings.S3_BUCKET, filename)
         logger.info(
             f"send {filename} to {self.settings.S3_ENDPOINT}"
@@ -69,7 +66,7 @@ class Exporter:
     ) -> None:
         schemas = pg_manager.get_schemas() if schema is None else [schema]
         for schema_name in schemas:
-            schema_dir = os.path.join(self._root_path, db_dir, schema_name)
+            schema_dir = os.path.join(self.root_path, db_dir, schema_name)
             make_dirs(schema_dir)
             tables = pg_manager.get_tables(schema_name)
             for table in tables:
@@ -101,3 +98,16 @@ class Exporter:
             f"{int(dt.datetime.now().timestamp())}_{exported_file_path.split('/')[-1]}",
         )
         return exported_file_path, export_filename
+
+    @logger.catch
+    def _init_s3_client(self) -> None:
+        if self._s3_client:
+            return
+        self._s3_session = boto3.session.Session()
+        self._s3_client = self._s3_session.client(
+            service_name="s3",
+            endpoint_url=self.settings.S3_ENDPOINT.unicode_string(),
+            aws_access_key_id=self.settings.S3_ACCESS_KEY.get_secret_value(),
+            aws_secret_access_key=self.settings.S3_SECRET_KEY.get_secret_value(),
+        )
+        logger.debug("Init s3 client")
