@@ -21,7 +21,7 @@ class Exporter:
         self._s3_session: boto3.session.Session | None = None
         self._s3_client = None
 
-        self.root_path = root_path or "/var/tmp/pg_dumps_minio"
+        self.root_path = root_path or "/var/tmp/pg_dumps_minio"  # noqa: S108
         self._dumps_dir: Final[str] = os.path.join(self.root_path, "dumps")
         self._export_format = "zip"
         self._batch_size = int(os.getenv("BATCH_SIZE", "10000"))
@@ -32,6 +32,7 @@ class Exporter:
                 self.export_one(db)
             except Exception as e:
                 logger.error(f"Failed to export {db}: {e}")
+                logger.exception(e)
 
     def export_one(
         self,

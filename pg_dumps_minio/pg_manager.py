@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import NamedTuple, Optional
 
 from psycopg2.extras import NamedTupleCursor
@@ -27,16 +28,14 @@ class PgManager:
         table: str,
         limit: int,
         offset: int,
-    ) -> NamedTuple:
-        query = f"select * from {schema}.{table} limit {limit} offset {offset}"
-        data = self._fetch_data(query)
-        return data
+    ) -> list[NamedTuple]:
+        query = f"select * from {schema}.{table} limit {limit} offset {offset}"  # noqa: S608
+        return self._fetch_data(query)
 
     def _fetch_data(
         self,
         query: str,
-        variables: Optional[tuple[str]] = None,
+        variables: Optional[Sequence[str, ...]] = None,
     ) -> list[NamedTuple]:
         self._cursor.execute(query, variables)
-        data = self._cursor.fetchall()
-        return data
+        return self._cursor.fetchall()
