@@ -5,8 +5,9 @@ from psycopg2.extras import NamedTupleCursor
 
 
 class PgManager:
-    def __init__(self, cursor: NamedTupleCursor) -> None:
+    def __init__(self, cursor: NamedTupleCursor, db_name: str) -> None:
         self._cursor = cursor
+        self.db_name = db_name
 
     def get_schemas(
         self,

@@ -4,15 +4,16 @@ Export all tables in csv from PostgreSQL to S3 bucket
 
 Envs:
 
-| key           | value                                                  |
-|---------------|--------------------------------------------------------|
-| S3_ENDPOINT   | http://127.0.0.1:9000                                  |
-| S3_BUCKET     | bucket_name                                            |
-| S3_ACCESS_KEY | access_key                                             |
-| S3_SECRET_KEY | secret_key                                             |
-| DB_DSN_1      | postgresql://postgres:postgres@localhost:5432/postgres |
-| DB_SCHEMA_1   | public                                                 |
-| BATCH_SIZE    | 10000                                                  |
+| key                 | value                                                  |
+|---------------------|--------------------------------------------------------|
+| S3_ENDPOINT         | http://127.0.0.1:9000                                  |
+| S3_BUCKET           | bucket_name                                            |
+| S3_ACCESS_KEY       | access_key                                             |
+| S3_SECRET_KEY       | secret_key                                             |
+| DB_DSN_1            | postgresql://postgres:postgres@localhost:5432/postgres |
+| DB_SCHEMA_1         | public                                                 |
+| IGNORE_DUPLICATES_1 | True                                                   |
+| BATCH_SIZE          | 10000                                                  |
 
 For export data from few databases you can set many envs for db_dsn, e.g:
 ```bash
@@ -22,7 +23,10 @@ DB_SCHEMA_dev=public
 DB_DSN_prod=postgresql://postgres:postgres@localhost:5432/postgres_prod
 DB_SCHEMA_prod=public
 ```
-Make sure that values after prefix DB_DSN_ and DB_SCHEMA are equals
+For ignoring duplicates in s3 storage set env `IGNORE_DUPLICATES_`
+
+Make sure that values after prefix in database settings are equals
+(e.g. DB_DSN_PROD, DB_SCHEMA_PROD, IGNORE_DUPLICATES_PROD)
 
 > ❗delete DB_SCHEMA to copy all schemas from database
 
