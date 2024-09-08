@@ -20,6 +20,7 @@ class DatabaseSettings(BaseModel):
     name: str
     dsn: PostgresDsn
     db_schema: Optional[str] = None
+    ignore_duplicates: bool = False
 
 
 class Settings(BaseSettings):
@@ -43,5 +44,17 @@ class Settings(BaseSettings):
                 name = k.removeprefix("DB_SCHEMA_")
                 if name in databases:
                     databases[name].db_schema = v
+        for k, v in os.environ.items():
+            if k.startswith("IGNORE_DUPLICATES_"):
+                name = k.removeprefix("IGNORE_DUPLICATES_")
+                if name in databases:
+                    databases[name].ignore_duplicates = v
+
         self.databases = list(databases.values())
         return self
+
+    def get_settings_for_db(self, db_name: str) -> DatabaseSettings:
+        for database in self.databases:
+            if database.dsn.path.removeprefix("/") == db_name:
+                return database
+        raise ValueError(f"Database {db_name} does not exist")
