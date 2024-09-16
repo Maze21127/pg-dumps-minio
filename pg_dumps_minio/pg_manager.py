@@ -36,7 +36,7 @@ class PgManager:
     def _fetch_data(
         self,
         query: str,
-        variables: Optional[Sequence[str, ...]] = None,
+        variables: Optional[Sequence[str]] = None,
     ) -> list[NamedTuple]:
         self._cursor.execute(query, variables)
         return self._cursor.fetchall()
