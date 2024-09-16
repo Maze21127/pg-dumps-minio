@@ -1,5 +1,4 @@
-from collections.abc import Sequence
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Sequence
 
 from psycopg2.extras import NamedTupleCursor
 

@@ -2,10 +2,10 @@ import csv
 import hashlib
 import os
 import shutil
-from collections.abc import Buffer, Generator
-from typing import NamedTuple
+from typing import Generator, NamedTuple
 
 from loguru import logger
+from typing_extensions import Buffer
 
 
 def make_dirs(*dirs: str) -> None:
