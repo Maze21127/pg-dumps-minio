@@ -2,10 +2,9 @@ import csv
 import hashlib
 import os
 import shutil
-from typing import Generator, NamedTuple
+from typing import Iterator, NamedTuple
 
 from loguru import logger
-from typing_extensions import Buffer
 
 
 def make_dirs(*dirs: str) -> None:
@@ -42,7 +41,7 @@ def get_file_md5_hash(filepath: str) -> str:
 
 def file_as_blockiter(
     filepath: str, block_size: int = 65536
-) -> Generator[Buffer]:
+) -> Iterator[bytes]:
     with open(filepath, "rb") as f:
         block = f.read(block_size)
         while len(block) > 0:
