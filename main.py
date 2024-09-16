@@ -6,6 +6,13 @@ from settings import Settings
 
 if __name__ == "__main__":
     settings = Settings()
+    for db in settings.databases:
+        logger.debug(
+            "DBNAME={}, DB_SCHEMA={}, IGNORE={}",
+            db.dsn.path,
+            db.db_schema,
+            db.ignore_duplicates,
+        )
     exporter = Exporter(settings)
     try:
         exporter.export_all()
