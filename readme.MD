@@ -69,7 +69,7 @@ python main.py
 
 poetry
 ```bash
-cat <(crontab -l) <(echo "@daily cd $(pwd) && poetry run main.py >> $(pwd)/cron_log.txt 2>&1") | crontab - 
+cat <(crontab -l) <(echo "@daily cd $(pwd) && poetry run python main.py >> $(pwd)/cron_log.txt 2>&1") | crontab - 
 ```
 
 pip
